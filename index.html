@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Laufschrift Banner Generator SL</title>
+  <style>
+    :root {
+      --bg-panel: rgba(18, 18, 24, 0.88);
+      --border-color: rgba(255, 255, 255, 0.15);
+      --accent-color: #00f2fe;
+      --text-color: #f0f0f8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #000;
+      color: var(--text-color);
+    }
+
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    /* Floating Toggle Button (Touch-freundlich) */
+    #toggle-ui-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 20;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      color: #fff;
+      font-size: 1.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      transition: transform 0.2s, background 0.2s;
+    }
+
+    #toggle-ui-btn:active {
+      transform: scale(0.92);
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Steuerungs-Panel */
+    #control-panel {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 350px;
+      max-height: calc(100vh - 32px);
+      background: var(--bg-panel);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 18px;
+      z-index: 30;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+      overflow-y: auto;
+      transition: opacity 0.3s cubic-bezier(0.1, 0.9, 0.2, 1), transform 0.3s cubic-bezier(0.1, 0.9, 0.2, 1);
+    }
+
+    #control-panel.hidden {
+      opacity: 0;
+      transform: translateY(-20px) scale(0.96);
+      pointer-events: none;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .panel-header h2 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .close-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #fff;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    .close-btn:active {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .control-group {
+      margin-bottom: 14px;
+    }
+
+    .control-group label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      margin-bottom: 6px;
+      color: #ccc;
+    }
+
+    .control-group label span.val {
+      color: var(--accent-color);
+      font-family: monospace;
+      font-weight: bold;
+    }
+
+    input[type="text"], select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: rgba(0, 0, 0, 0.4);
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    input[type="text"]:focus, select:focus {
+      border-color: var(--accent-color);
+    }
+
+    .color-picker-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .color-picker-row input[type="color"] {
+      flex: 1;
+      height: 40px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      accent-color: var(--accent-color);
+      cursor: pointer;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    button.btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    button.btn:active {
+      transform: scale(0.97);
+    }
+
+    button.btn.primary {
+      background: var(--accent-color);
+      color: #000;
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .checkbox-group input {
+      accent-color: var(--accent-color);
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    .checkbox-group label {
+      margin-bottom: 0;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    /* Touch-Button unten links für sauberes Wiedereinblenden */
+    #quick-show-btn {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      z-index: 25;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      backdrop-filter: blur(10px);
+      display: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      cursor: pointer;
+    }
+
+    #control-panel::-webkit-scrollbar {
+      width: 6px;
+    }
+    #control-panel::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="canvas-container">
+    <canvas id="bannerCanvas"></canvas>
+  </div>
+
+  <button id="toggle-ui-btn" title="Menü ein/ausblenden">⚙️</button>
+  <button id="quick-show-btn">⚙️ Menü anzeigen</button>
+
+  <div id="control-panel">
+    <div class="panel-header">
+      <h2>Banner Einstellungen </h2>
+	  <span style="font-size: 0,15em ; font-style: italic; color: #888888;">
+    Created by Stefan Loeseke flyloetrump vibecoding
+  </span>
+	  
+      <button class="close-btn" id="closePanelBtn" title="Menü schießen">✕</button>
+    </div>
+
+    <!-- Text Eingabe -->
+    <div class="control-group">
+      <label for="textInput">Text</label>
+      <input type="text" id="textInput" value="WILLKOMMEN — LAUFSCHRIFT BANNER — ">
+    </div>
+
+    <!-- Schriftart, Größe & Abstand -->
+    <div class="control-group">
+      <label for="fontSelect">Schriftart</label>
+      <select id="fontSelect">
+        <option value="Impact">Impact (Fett & Groß)</option>
+        <option value="Arial Black">Arial Black</option>
+        <option value="Trebuchet MS">Trebuchet MS</option>
+        <option value="Courier New">Courier New (Monospace)</option>
+        <option value="Georgia">Georgia (Serif)</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label>Schriftgröße: <span id="fontSizeVal" class="val">250px</span></label>
+      <input type="range" id="fontSize" min="40" max="800" value="250">
+    </div>
+
+    <div class="control-group">
+      <label>Buchstabenabstand: <span id="letterSpacingVal" class="val">20px</span></label>
+      <input type="range" id="letterSpacing" min="-20" max="200" value="20">
+    </div>
+
+    <!-- Geschwindigkeit & Richtung -->
+    <div class="control-group">
+      <label>Geschwindigkeit: <span id="speedVal" class="val">5</span></label>
+      <input type="range" id="speed" min="0" max="50" value="5" step="0.5">
+    </div>
+
+    <div class="btn-row">
+      <button id="pauseBtn" class="btn primary">Pause</button>
+      <button id="dirBtn" class="btn">Richtung ◀</button>
+    </div>
+
+    <!-- Farben & Hintergrund -->
+    <div class="control-group" style="margin-top: 14px;">
+      <label>Textfarbe & Glow-Farbe</label>
+      <div class="color-picker-row">
+        <input type="color" id="textColor" value="#ffffff" title="Textfarbe">
+        <input type="color" id="glowColor" value="#00f2fe" title="Glow/Schatten-Farbe">
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label for="bgType">Hintergrund-Typ</label>
+      <select id="bgType">
+        <option value="solid">Einfarbig</option>
+        <option value="linear" selected>Linearer Verlauf</option>
+        <option value="radial">Radialer Verlauf</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label>Hintergrundfarben</label>
+      <div class="color-picker-row">
+        <input type="color" id="bgColor1" value="#080810" title="Farbe 1">
+        <input type="color" id="bgColor2" value="#1a0033" title="Farbe 2">
+      </div>
+    </div>
+
+    <!-- Effekte -->
+    <div class="control-group">
+      <label>Glow / Leuchteffekt: <span id="glowVal" class="val">25px</span></label>
+      <input type="range" id="glowBlur" min="0" max="100" value="25">
+    </div>
+
+    <div class="control-group">
+      <label>Textkontur (Stroke): <span id="strokeVal" class="val">0px</span></label>
+      <input type="range" id="strokeWidth" min="0" max="25" value="0">
+    </div>
+
+    <div class="checkbox-group">
+      <input type="checkbox" id="reflectionCheck">
+      <label for="reflectionCheck">Spiegelungseffekt am Boden</label>
+    </div>
+
+    <!-- Aktionen -->
+    <div class="btn-row" style="margin-top: 16px;">
+      <button id="fullscreenBtn" class="btn">Vollbild ⛶</button>
+    </div>
+  </div>
+
+  <script>
+    // Canvas & Context Setup
+    const canvas = document.getElementById('bannerCanvas');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('canvas-container');
+
+    // UI Elemente
+    const controlPanel = document.getElementById('control-panel');
+    const toggleUiBtn = document.getElementById('toggle-ui-btn');
+    const closePanelBtn = document.getElementById('closePanelBtn');
+    const quickShowBtn = document.getElementById('quick-show-btn');
+    const textInput = document.getElementById('textInput');
+    const fontSelect = document.getElementById('fontSelect');
+    const fontSizeInput = document.getElementById('fontSize');
+    const fontSizeVal = document.getElementById('fontSizeVal');
+    const letterSpacingInput = document.getElementById('letterSpacing');
+    const letterSpacingVal = document.getElementById('letterSpacingVal');
+    const speedInput = document.getElementById('speed');
+    const speedVal = document.getElementById('speedVal');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const dirBtn = document.getElementById('dirBtn');
+    const textColorInput = document.getElementById('textColor');
+    const glowColorInput = document.getElementById('glowColor');
+    const bgTypeSelect = document.getElementById('bgType');
+    const bgColor1Input = document.getElementById('bgColor1');
+    const bgColor2Input = document.getElementById('bgColor2');
+    const glowBlurInput = document.getElementById('glowBlur');
+    const glowVal = document.getElementById('glowVal');
+    const strokeWidthInput = document.getElementById('strokeWidth');
+    const strokeVal = document.getElementById('strokeVal');
+    const reflectionCheck = document.getElementById('reflectionCheck');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+    // Statusvariablen für die Animation
+    let posX = 0;
+    let isPaused = false;
+    let direction = -1; // -1 = links, 1 = rechts
+    let textWidth = 0;
+
+    // Canvas-Größe an Fenster anpassen
+    function resizeCanvas() {
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+    }
+
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      if (posX === 0 && direction === -1) {
+        posX = canvas.width;
+      }
+    });
+
+    resizeCanvas();
+    posX = canvas.width;
+
+    // Parameterwerte auslesen
+    function getParams() {
+      return {
+        text: textInput.value || ' ',
+        font: fontSelect.value,
+        size: parseInt(fontSizeInput.value, 10),
+        spacing: parseInt(letterSpacingInput.value, 10),
+        speed: parseFloat(speedInput.value),
+        textColor: textColorInput.value,
+        glowColor: glowColorInput.value,
+        bgType: bgTypeSelect.value,
+        bgColor1: bgColor1Input.value,
+        bgColor2: bgColor2Input.value,
+        glowBlur: parseInt(glowBlurInput.value, 10),
+        strokeWidth: parseInt(strokeWidthInput.value, 10),
+        reflection: reflectionCheck.checked
+      };
+    }
+
+    // Hintergrund zeichnen
+    function drawBackground(p) {
+      const w = canvas.width;
+      const h = canvas.height;
+
+      if (p.bgType === 'solid') {
+        ctx.fillStyle = p.bgColor1;
+        ctx.fillRect(0, 0, w, h);
+      } else if (p.bgType === 'linear') {
+        const grad = ctx.createLinearGradient(0, 0, w, h);
+        grad.addColorStop(0, p.bgColor1);
+        grad.addColorStop(1, p.bgColor2);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+      } else if (p.bgType === 'radial') {
+        const grad = ctx.createRadialGradient(w/2, h/2, 10, w/2, h/2, Math.max(w, h)/1.2);
+        grad.addColorStop(0, p.bgColor1);
+        grad.addColorStop(1, p.bgColor2);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+      }
+    }
+
+    // Haupt-Zeichenfunktion
+    function draw() {
+      const p = getParams();
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBackground(p);
+
+      // Canvas Letter-Spacing / Font-Konfiguration
+      ctx.letterSpacing = p.spacing + 'px';
+      ctx.font = `bold ${p.size}px "${p.font}", sans-serif`;
+      ctx.textBaseline = 'middle';
+
+      // Gesamtbreite messen
+      textWidth = ctx.measureText(p.text).width;
+
+      // Position berechnen
+      if (!isPaused) {
+        posX += p.speed * direction;
+
+        if (direction === -1 && posX < -textWidth) {
+          posX = canvas.width;
+        } else if (direction === 1 && posX > canvas.width) {
+          posX = -textWidth;
+        }
+      }
+
+      const centerY = canvas.height / 2;
+
+      // --- Haupttext zeichnen ---
+      ctx.save();
+
+      if (p.glowBlur > 0) {
+        ctx.shadowColor = p.glowColor;
+        ctx.shadowBlur = p.glowBlur;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+      } else {
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+      }
+
+      if (p.strokeWidth > 0) {
+        ctx.strokeStyle = p.glowColor;
+        ctx.lineWidth = p.strokeWidth;
+        ctx.strokeText(p.text, posX, centerY);
+      }
+
+      ctx.fillStyle = p.textColor;
+      ctx.fillText(p.text, posX, centerY);
+
+      ctx.restore();
+
+      // --- Optionaler Spiegelungseffekt am Boden ---
+      if (p.reflection) {
+        ctx.save();
+        ctx.translate(0, canvas.height);
+        ctx.scale(1, -0.35); // Vertikal spiegeln & stauchen
+        
+        ctx.letterSpacing = p.spacing + 'px';
+        ctx.font = `bold ${p.size}px "${p.font}", sans-serif`;
+        ctx.textBaseline = 'middle';
+        
+        const reflGrad = ctx.createLinearGradient(0, centerY - p.size, 0, centerY + p.size);
+        reflGrad.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
+        reflGrad.addColorStop(1, 'rgba(255, 255, 255, 0.0)');
+        
+        ctx.fillStyle = reflGrad;
+        ctx.fillText(p.text, posX, centerY);
+        ctx.restore();
+      }
+
+      requestAnimationFrame(draw);
+    }
+
+    // Event-Listener für Schieberegler Anzeigen
+    fontSizeInput.addEventListener('input', (e) => {
+      fontSizeVal.textContent = e.target.value + 'px';
+    });
+
+    letterSpacingInput.addEventListener('input', (e) => {
+      letterSpacingVal.textContent = e.target.value + 'px';
+    });
+
+    speedInput.addEventListener('input', (e) => {
+      speedVal.textContent = e.target.value;
+    });
+
+    glowBlurInput.addEventListener('input', (e) => {
+      glowVal.textContent = e.target.value + 'px';
+    });
+
+    strokeWidthInput.addEventListener('input', (e) => {
+      strokeVal.textContent = e.target.value + 'px';
+    });
+
+    pauseBtn.addEventListener('click', () => {
+      isPaused = !isPaused;
+      pauseBtn.textContent = isPaused ? 'Weiter' : 'Pause';
+      pauseBtn.classList.toggle('primary', !isPaused);
+    });
+
+    dirBtn.addEventListener('click', () => {
+      direction *= -1;
+      dirBtn.textContent = direction === -1 ? 'Richtung ◀' : 'Richtung ▶';
+    });
+
+    // Menü Aus- & Einblenden Steuerung
+    function setPanelVisibility(show) {
+      if (show) {
+        controlPanel.classList.remove('hidden');
+        quickShowBtn.style.display = 'none';
+      } else {
+        controlPanel.classList.add('hidden');
+        quickShowBtn.style.display = 'block';
+      }
+    }
+
+    toggleUiBtn.addEventListener('click', () => {
+      const isHidden = controlPanel.classList.contains('hidden');
+      setPanelVisibility(isHidden);
+    });
+
+    closePanelBtn.addEventListener('click', () => {
+      setPanelVisibility(false);
+    });
+
+    quickShowBtn.addEventListener('click', () => {
+      setPanelVisibility(true);
+    });
+
+    // Tastatur-Shortcuts (H = Hide/Show, Space = Pause)
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+      if (e.key === 'h' || e.key === 'H') {
+        const isHidden = controlPanel.classList.contains('hidden');
+        setPanelVisibility(isHidden);
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        pauseBtn.click();
+      }
+    });
+
+    // Klick/Tipp auf Canvas pausiert Text
+    canvas.addEventListener('click', () => {
+      pauseBtn.click();
+    });
+
+    // Vollbildfunktion
+    fullscreenBtn.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          alert(`Vollbildmodus nicht verfügbar: ${err.message}`);
+        });
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    });
+
+    // Start
+    draw();
+  </script>
+</body>
+</html>
