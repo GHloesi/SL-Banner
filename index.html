@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Laufschrift Banner Generator SL</title>
+  <title>Laufschrift Banner Generator</title>
   <style>
     :root {
       --bg-panel: rgba(18, 18, 24, 0.88);
@@ -112,22 +112,29 @@
       color: #fff;
     }
 
-    .close-btn {
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .icon-btn {
       background: rgba(255, 255, 255, 0.1);
       border: none;
       color: #fff;
       width: 32px;
       height: 32px;
       border-radius: 50%;
-      font-size: 1.1rem;
+      font-size: 0.95rem;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       line-height: 1;
+      transition: background 0.2s;
     }
 
-    .close-btn:active {
+    .icon-btn:active {
       background: rgba(255, 255, 255, 0.3);
     }
 
@@ -274,12 +281,14 @@
 
   <div id="control-panel">
     <div class="panel-header">
-      <h2>Banner Einstellungen </h2>
-	  <span style="font-size: 0,15em ; font-style: italic; color: #888888;">
+      <h2>Banner Einstellungen</h2>
+	    <span style="font-size: 0,15em ; font-style: italic; color: #888888;">
     Created by Stefan Loeseke flyloetrump vibecoding
   </span>
-	  
-      <button class="close-btn" id="closePanelBtn" title="Menü schießen">✕</button>
+      <div class="header-actions">
+        <button class="icon-btn" id="headerFullscreenBtn" title="Vollbild umschalten">⛶</button>
+        <button class="icon-btn" id="closePanelBtn" title="Menü schließen">✕</button>
+      </div>
     </div>
 
     <!-- Text Eingabe -->
@@ -362,11 +371,6 @@
       <input type="checkbox" id="reflectionCheck">
       <label for="reflectionCheck">Spiegelungseffekt am Boden</label>
     </div>
-
-    <!-- Aktionen -->
-    <div class="btn-row" style="margin-top: 16px;">
-      <button id="fullscreenBtn" class="btn">Vollbild ⛶</button>
-    </div>
   </div>
 
   <script>
@@ -380,6 +384,7 @@
     const toggleUiBtn = document.getElementById('toggle-ui-btn');
     const closePanelBtn = document.getElementById('closePanelBtn');
     const quickShowBtn = document.getElementById('quick-show-btn');
+    const headerFullscreenBtn = document.getElementById('headerFullscreenBtn');
     const textInput = document.getElementById('textInput');
     const fontSelect = document.getElementById('fontSelect');
     const fontSizeInput = document.getElementById('fontSize');
@@ -400,15 +405,14 @@
     const strokeWidthInput = document.getElementById('strokeWidth');
     const strokeVal = document.getElementById('strokeVal');
     const reflectionCheck = document.getElementById('reflectionCheck');
-    const fullscreenBtn = document.getElementById('fullscreenBtn');
 
-    // Statusvariablen für die Animation
+    // Statusvariablen
     let posX = 0;
     let isPaused = false;
     let direction = -1; // -1 = links, 1 = rechts
     let textWidth = 0;
 
-    // Canvas-Größe an Fenster anpassen
+    // Canvas-Größe anpassen
     function resizeCanvas() {
       canvas.width = container.clientWidth;
       canvas.height = container.clientHeight;
@@ -424,7 +428,6 @@
     resizeCanvas();
     posX = canvas.width;
 
-    // Parameterwerte auslesen
     function getParams() {
       return {
         text: textInput.value || ' ',
@@ -443,7 +446,6 @@
       };
     }
 
-    // Hintergrund zeichnen
     function drawBackground(p) {
       const w = canvas.width;
       const h = canvas.height;
@@ -466,22 +468,18 @@
       }
     }
 
-    // Haupt-Zeichenfunktion
     function draw() {
       const p = getParams();
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawBackground(p);
 
-      // Canvas Letter-Spacing / Font-Konfiguration
       ctx.letterSpacing = p.spacing + 'px';
       ctx.font = `bold ${p.size}px "${p.font}", sans-serif`;
       ctx.textBaseline = 'middle';
 
-      // Gesamtbreite messen
       textWidth = ctx.measureText(p.text).width;
 
-      // Position berechnen
       if (!isPaused) {
         posX += p.speed * direction;
 
@@ -494,7 +492,6 @@
 
       const centerY = canvas.height / 2;
 
-      // --- Haupttext zeichnen ---
       ctx.save();
 
       if (p.glowBlur > 0) {
@@ -518,11 +515,10 @@
 
       ctx.restore();
 
-      // --- Optionaler Spiegelungseffekt am Boden ---
       if (p.reflection) {
         ctx.save();
         ctx.translate(0, canvas.height);
-        ctx.scale(1, -0.35); // Vertikal spiegeln & stauchen
+        ctx.scale(1, -0.35);
         
         ctx.letterSpacing = p.spacing + 'px';
         ctx.font = `bold ${p.size}px "${p.font}", sans-serif`;
@@ -540,26 +536,46 @@
       requestAnimationFrame(draw);
     }
 
-    // Event-Listener für Schieberegler Anzeigen
-    fontSizeInput.addEventListener('input', (e) => {
-      fontSizeVal.textContent = e.target.value + 'px';
-    });
+    // Vollbild-Steuerung
+    function requestFS() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    }
 
-    letterSpacingInput.addEventListener('input', (e) => {
-      letterSpacingVal.textContent = e.target.value + 'px';
-    });
+    function exitFS() {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
 
-    speedInput.addEventListener('input', (e) => {
-      speedVal.textContent = e.target.value;
-    });
+    function toggleFS() {
+      if (!document.fullscreenElement) {
+        requestFS();
+      } else {
+        exitFS();
+      }
+    }
 
-    glowBlurInput.addEventListener('input', (e) => {
-      glowVal.textContent = e.target.value + 'px';
-    });
+    // Menü Aus- & Einblenden mit automatischem Vollbild
+    function setPanelVisibility(show) {
+      if (show) {
+        controlPanel.classList.remove('hidden');
+        quickShowBtn.style.display = 'none';
+        exitFS(); // Vollbild verlassen, wenn das Menü geöffnet wird
+      } else {
+        controlPanel.classList.add('hidden');
+        quickShowBtn.style.display = 'block';
+        requestFS(); // Automatischer Wechsel in den Vollbildmodus beim Ausblenden
+      }
+    }
 
-    strokeWidthInput.addEventListener('input', (e) => {
-      strokeVal.textContent = e.target.value + 'px';
-    });
+    // Event-Listener
+    fontSizeInput.addEventListener('input', (e) => fontSizeVal.textContent = e.target.value + 'px');
+    letterSpacingInput.addEventListener('input', (e) => letterSpacingVal.textContent = e.target.value + 'px');
+    speedInput.addEventListener('input', (e) => speedVal.textContent = e.target.value);
+    glowBlurInput.addEventListener('input', (e) => glowVal.textContent = e.target.value + 'px');
+    strokeWidthInput.addEventListener('input', (e) => strokeVal.textContent = e.target.value + 'px');
 
     pauseBtn.addEventListener('click', () => {
       isPaused = !isPaused;
@@ -572,31 +588,16 @@
       dirBtn.textContent = direction === -1 ? 'Richtung ◀' : 'Richtung ▶';
     });
 
-    // Menü Aus- & Einblenden Steuerung
-    function setPanelVisibility(show) {
-      if (show) {
-        controlPanel.classList.remove('hidden');
-        quickShowBtn.style.display = 'none';
-      } else {
-        controlPanel.classList.add('hidden');
-        quickShowBtn.style.display = 'block';
-      }
-    }
-
     toggleUiBtn.addEventListener('click', () => {
       const isHidden = controlPanel.classList.contains('hidden');
       setPanelVisibility(isHidden);
     });
 
-    closePanelBtn.addEventListener('click', () => {
-      setPanelVisibility(false);
-    });
+    closePanelBtn.addEventListener('click', () => setPanelVisibility(false));
+    quickShowBtn.addEventListener('click', () => setPanelVisibility(true));
+    headerFullscreenBtn.addEventListener('click', toggleFS);
 
-    quickShowBtn.addEventListener('click', () => {
-      setPanelVisibility(true);
-    });
-
-    // Tastatur-Shortcuts (H = Hide/Show, Space = Pause)
+    // Tastatur-Shortcuts
     window.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
 
@@ -609,22 +610,9 @@
       }
     });
 
-    // Klick/Tipp auf Canvas pausiert Text
+    // Klick aufs Canvas pausiert den Text
     canvas.addEventListener('click', () => {
       pauseBtn.click();
-    });
-
-    // Vollbildfunktion
-    fullscreenBtn.addEventListener('click', () => {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(err => {
-          alert(`Vollbildmodus nicht verfügbar: ${err.message}`);
-        });
-      } else {
-        if (document.exitFullscreen) {
-          document.exitFullscreen();
-        }
-      }
     });
 
     // Start
